@@ -1,0 +1,14 @@
+host: 0.0.0.0
+port: 8080
+log:
+  level: info
+  path: ./logs
+jwt:
+  secret: hfjtSdYL6j!Ts$uD
+  expire: 3600
+db:
+  host: localhost
+  port: 3306
+  user: test
+  password: test
+  name: test

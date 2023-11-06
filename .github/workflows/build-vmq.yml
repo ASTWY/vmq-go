@@ -1,0 +1,39 @@
+name: Cross-platform Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [windows, linux]
+        arch: [amd64, arm64, arm, 386]
+
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21.3'
+
+    - name: Set up environment
+      run: |
+        go env -w GO111MODULE=on
+        go env -w CGO_ENABLED=0
+
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build
+      run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o vmq-${{ matrix.os }}-${{ matrix.arch }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: vmq-${{ matrix.os }}-${{ matrix.arch }}
+        path: vmq-${{ matrix.os }}-${{ matrix.arch }}
