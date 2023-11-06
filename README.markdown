@@ -18,20 +18,6 @@
   - 收款通知
   - 收款异常通知
 
-## 使用
-
-### 1. 下载
-
-在 [Release](/astwy/vmq-go/releases) 页面或 [Actions](/astwy/vmq-go/actions) 页面下载对应系统的可执行文件。
-
-### 2. 配置
-
-将下载的压缩包解压，修改**config.example.yam**文件，配置数据库等信息。然后将文件重命名**config.yaml**
-
-### 3. 运行
-
-根据不同的系统，运行对应的可执行文件即可。
-
 ## TODO
 
 - [ ] 优化日志
