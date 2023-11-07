@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"vmq-go/db"
-	"vmq-go/logger"
 	"vmq-go/middleware"
 	"vmq-go/router/api/admin"
 	"vmq-go/task"
@@ -410,6 +409,7 @@ func HeartHandler(c *gin.Context) {
 		return
 	}
 	c.Set("code", http.StatusOK)
+	c.Set("data", "success")
 }
 
 func AppPushHandler(c *gin.Context) {
@@ -443,18 +443,13 @@ func AppPushHandler(c *gin.Context) {
 		c.Error(fmt.Errorf("sign is empty"))
 		return
 	}
-	metdata := c.Query("metadata")
-	if metdata == "" {
-		c.Error(fmt.Errorf("metadata is empty"))
-		return
-	}
+	metdata := c.DefaultQuery("metadata", "")
 	apisecret, err := db.GetSetting("apiSecret")
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	logger.Logger.Debug(hash.GetMD5Hash(t + _type + price + apisecret.VValue))
-	if hash.GetMD5Hash(t+_type+price+apisecret.VValue) != sign {
+	if hash.GetMD5Hash(_type+price+t+apisecret.VValue) != sign {
 		c.Error(fmt.Errorf("sign error"))
 		return
 	}
