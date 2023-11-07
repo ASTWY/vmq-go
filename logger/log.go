@@ -19,6 +19,7 @@ var (
 
 // CustomFormatter 自定义日志格式器
 type CustomFormatter struct {
+	logrus.TextFormatter
 }
 
 // Format 格式化日志
@@ -26,6 +27,12 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	level := strings.ToUpper(entry.Level.String())
 	msg := entry.Message
+	if entry.HasCaller() {
+		file := fmt.Sprintf("%s:%d", entry.Caller.File, entry.Caller.Line)
+		fileList := strings.Split(file, "/")
+		file = fmt.Sprintf("%s/%s", fileList[len(fileList)-2], fileList[len(fileList)-1])
+		msg = fmt.Sprintf("%s | %s", file, msg)
+	}
 	return []byte(fmt.Sprintf("%s | %8s | %s\n", timestamp, level, msg)), nil
 }
 
@@ -39,7 +46,13 @@ func InitLogger(logLevel string, logPath string) {
 		MaxAge:     30, // days
 	}
 
-	Logger.SetFormatter(&CustomFormatter{})
+	Logger.SetFormatter(&CustomFormatter{
+		logrus.TextFormatter{
+			DisableColors: true,
+		},
+	})
+
+	Logger.SetReportCaller(true)
 
 	// 设置输出到终端和文件
 	mw := io.MultiWriter(os.Stdout, logFile)
