@@ -30,7 +30,12 @@ jobs:
       run: go mod download
 
     - name: Build
-      run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o vmq-${{ matrix.os }}-${{ matrix.arch }}
+      run: |
+        if [ "${{ matrix.os }}" == "windows" ]; then
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o vmq-${{ matrix.os }}-${{ matrix.arch }}.exe
+        else
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o vmq-${{ matrix.os }}-${{ matrix.arch }}
+        fi
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
