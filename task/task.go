@@ -209,6 +209,14 @@ func Notify(order db.PayOrder) {
 		}
 		logger.Logger.Info("异步通知结果", string(body))
 		if string(body) != "success" {
+			setting, err := db.GetSetting("errorNotice")
+			if err != nil {
+				logger.Logger.Error(err)
+			} else {
+				if setting.VValue != "0" {
+					go SendEmailTask("异步通知失败", fmt.Sprintf("异步通知失败，状态码：%d，订单ID：%d", resp.StatusCode, order.ID))
+				}
+			}
 			order.State = 2
 		} else {
 			order.State = 3
