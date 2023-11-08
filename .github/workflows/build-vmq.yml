@@ -40,5 +40,15 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: vmq-${{ matrix.os }}-${{ matrix.arch }}
-        path: vmq-${{ matrix.os }}-${{ matrix.arch }}
+        name: |
+          if [ "${{ matrix.os }}" == "windows" ]; then
+            echo "vmq-${{ matrix.os }}-${{ matrix.arch }}.exe"
+          else
+            echo "vmq-${{ matrix.os }}-${{ matrix.arch }}"
+          fi
+        path: |
+          if [ "${{ matrix.os }}" == "windows" ]; then
+            echo "vmq-${{ matrix.os }}-${{ matrix.arch }}.exe"
+          else
+            echo "vmq-${{ matrix.os }}-${{ matrix.arch }}"
+          fi
