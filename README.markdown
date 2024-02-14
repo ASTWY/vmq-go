@@ -26,4 +26,4 @@
 
 ## 致谢
 
-- [V 免签](https://github.com/szone/vmqphp)
+- [V 免签](https://github.com/szvone/Vmq)
