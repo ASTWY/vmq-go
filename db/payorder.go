@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 	"vmq-go/utils"
 )
@@ -84,15 +83,11 @@ func GetPayOrderByOrderID(orderID string) (PayOrder, error) {
 // 添加数据 返回添加的数据
 func AddPayOrder(payId string, type_ int, price float64, param string, notifyUrl string, returnUrl string) error {
 	createDate := utils.GetUnix10()
-	expire, err := GetSetting("expire")
+	appConfig, err := GetAppConfig()
 	if err != nil {
 		return err
 	}
-	expireInt, err := strconv.Atoi(expire.VValue)
-	if err != nil {
-		return err
-	}
-	expectDate := createDate + int64(expireInt*60)
+	expectDate := createDate + int64(appConfig.Expire*60)
 	payqrcode, err := GetPayQrcodeByTypeAndPrice(type_, price)
 	if err != nil {
 		if err.Error() == "record not found" {
@@ -106,17 +101,9 @@ func AddPayOrder(payId string, type_ int, price float64, param string, notifyUrl
 	if payqrcode.ID == 0 {
 		switch type_ {
 		case 1:
-			setting, err := GetSetting("wechatPay")
-			if err != nil {
-				return err
-			}
-			payUrl = setting.VValue
+			payUrl = appConfig.WechatPay
 		case 2:
-			setting, err := GetSetting("aliPay")
-			if err != nil {
-				return err
-			}
-			payUrl = setting.VValue
+			payUrl = appConfig.AliPay
 		}
 		isAuto = 0
 	} else {
@@ -129,26 +116,9 @@ func AddPayOrder(payId string, type_ int, price float64, param string, notifyUrl
 	if err != nil {
 		return err
 	}
-	// 取orderMaxNum
-	orderMaxNum, err := GetSetting("orderMaxNum")
-	if err != nil {
-		return err
-	}
-	orderMaxNumInt, err := strconv.Atoi(orderMaxNum.VValue)
-	if err != nil {
-		return err
-	}
 	consecutive, missPrices := utils.CeckConsecutive(reallyPriceList)
 	var reallyPrice float64
-	setting, err := GetSetting("orderType")
-	if err != nil {
-		return err
-	}
-	orderType, err := strconv.Atoi(setting.VValue)
-	if err != nil {
-		return err
-	}
-	switch orderType {
+	switch appConfig.OrderType {
 	case 1:
 		// 金额递减
 		if len(reallyPriceList) == 0 || !utils.BinarySearch(reallyPriceList, price) {
@@ -174,7 +144,7 @@ func AddPayOrder(payId string, type_ int, price float64, param string, notifyUrl
 			}
 		}
 	}
-	if len(reallyPriceList) >= orderMaxNumInt || reallyPrice < 0.01 {
+	if len(reallyPriceList) >= appConfig.OrderMaxNum || reallyPrice < 0.01 {
 		return fmt.Errorf("订单已满, 请稍后再试")
 	}
 	payOrder := PayOrder{

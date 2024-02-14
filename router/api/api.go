@@ -184,16 +184,13 @@ func creatOrderHandler(c *gin.Context) {
 			NotifyUrl: notifyUrl,
 			ReturnUrl: returnUrl,
 		}
-		// 1. 验证签名
-		key, err := db.GetSetting("apiSecret")
+		appConfig, err := db.GetAppConfig()
 		if err != nil {
-			c.JSON(200, gin.H{
-				"code": -1,
-				"msg":  err.Error(),
-			})
+			c.Error(err)
 			return
 		}
-		sign := hash.GetMD5Hash(payId + param + typeStr + priceStr + key.VValue)
+		// 1. 验证签名
+		sign := hash.GetMD5Hash(payId + param + typeStr + priceStr + appConfig.APISecret)
 		if sign != params.Sign {
 			c.JSON(200, gin.H{
 				"code": -1,
@@ -305,13 +302,13 @@ func getOrderStateGetHandler(c *gin.Context) {
 		"price":       utils.Float64ToSting(order.Price),
 		"reallyPrice": utils.Float64ToSting(order.ReallyPrice),
 	}
-	key, err := db.GetSetting("apiSecret")
+	appConfig, err := db.GetAppConfig()
 	if err != nil {
 		c.Error(err)
 		return
 	}
 	// sign := hash.GetMD5Hash(payId + param + typeStr + priceStr + key.VValue)
-	sign := hash.GetMD5Hash(fmt.Sprintf("%s%s%s%s%s", order.PayID, order.Param, fmt.Sprintf("%d", order.Type), utils.Float64ToSting(order.Price), utils.Float64ToSting(order.ReallyPrice)) + key.VValue)
+	sign := hash.GetMD5Hash(fmt.Sprintf("%s%s%s%s%s", order.PayID, order.Param, fmt.Sprintf("%d", order.Type), utils.Float64ToSting(order.Price), utils.Float64ToSting(order.ReallyPrice)) + appConfig.APISecret)
 	// 将map转为get参数 用于跳转
 	paramStr := ""
 	for k, v := range paramMap {
@@ -320,12 +317,7 @@ func getOrderStateGetHandler(c *gin.Context) {
 	paramStr += fmt.Sprintf("sign=%s", sign)
 	returnUrl := order.ReturnURL
 	if returnUrl == "" {
-		setting, err := db.GetSetting("returnURL")
-		if err != nil {
-			c.Error(err)
-			return
-		}
-		returnUrl = setting.VValue
+		returnUrl = appConfig.ReturnUrl
 	}
 	var state int
 	if order.State >= 1 {
@@ -394,12 +386,12 @@ func HeartHandler(c *gin.Context) {
 		c.Error(fmt.Errorf("sign is empty"))
 		return
 	}
-	apisecret, err := db.GetSetting("apiSecret")
+	appConfig, err := db.GetAppConfig()
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	if hash.GetMD5Hash(time+apisecret.VValue) != sign {
+	if hash.GetMD5Hash(time+appConfig.APISecret) != sign {
 		c.Error(fmt.Errorf("sign error"))
 		return
 	}
@@ -444,12 +436,12 @@ func AppPushHandler(c *gin.Context) {
 		return
 	}
 	metdata := c.DefaultQuery("metadata", "")
-	apisecret, err := db.GetSetting("apiSecret")
+	appConfig, err := db.GetAppConfig()
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	if hash.GetMD5Hash(_type+price+t+apisecret.VValue) != sign {
+	if hash.GetMD5Hash(_type+price+t+appConfig.APISecret) != sign {
 		c.Error(fmt.Errorf("sign error"))
 		return
 	}

@@ -55,7 +55,8 @@ func loginHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if !db.VerifyAdmin(login.Username, login.Password) {
+	appConfig, err := db.GetAppConfig()
+	if !appConfig.VerifyAdmin(login.Username, login.Password) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		c.Set("message", "用户名或密码错误")
 		return

@@ -16,70 +16,12 @@ import (
 // param subject 邮件主题
 // param body 邮件内容
 func SendEmailTask(subject string, body string) {
-	// STMP 服务器地址
-	setting, err := db.GetSetting("emailSMTPhost")
+	appConfig, err := db.GetAppConfig()
 	if err != nil {
-		logger.Logger.Errorf("获取SMTP服务器地址失败, %s", err)
+		logger.Logger.Errorf("获取配置失败, %s", err)
 		return
 	}
-	smtpHost := setting.VValue
-	// SMTP 服务器端口
-	setting, err = db.GetSetting("emailSMTPport")
-	if err != nil {
-		logger.Logger.Errorf("获取SMTP服务器端口失败, %s", err)
-		return
-	}
-	smtpPort, err := strconv.Atoi(setting.VValue)
-	if err != nil {
-		logger.Logger.Errorf("类型转换失败, %s", err)
-		return
-	}
-	// SMTP 服务器账号
-	setting, err = db.GetSetting("emailSMTPuser")
-	if err != nil {
-		logger.Logger.Errorf("获取SMTP服务器账号失败, %s", err)
-		return
-	}
-	smtpUser := setting.VValue
-	// SMTP 服务器密码
-	setting, err = db.GetSetting("emailSMTPpwd")
-	if err != nil {
-		logger.Logger.Errorf("获取SMTP服务器密码失败, %s", err)
-		return
-	}
-	smtpPassword := setting.VValue
-	// SMTP 服务器发件人邮箱
-	setting, err = db.GetSetting("emailSMTPfrom")
-	if err != nil {
-		logger.Logger.Errorf("获取SMTP服务器发件人邮箱失败, %s", err)
-		return
-	}
-	smtpSender := setting.VValue
-	// 收件人邮箱
-	setting, err = db.GetSetting("emailSMTPto")
-	if err != nil {
-		logger.Logger.Errorf("获取收件人邮箱失败, %s", err)
-		return
-	}
-	email := setting.VValue
-	// emailSMTPssl
-	setting, err = db.GetSetting("emailSMTPssl")
-	if err != nil {
-		logger.Logger.Errorf("获取emailSMTPssl失败, %s", err)
-		return
-	}
-	emailSMTPssl, err := strconv.Atoi(setting.VValue)
-	if err != nil {
-		logger.Logger.Errorf("类型转换失败, %s", err)
-		return
-	}
-	var emailSMTPsslBool bool
-	if emailSMTPssl == 0 {
-		emailSMTPsslBool = false
-	} else {
-		emailSMTPsslBool = true
-	}
-	err = utils.SendEmailUsingSMTP(subject, body, smtpHost, smtpPort, smtpUser, smtpPassword, smtpSender, email, emailSMTPsslBool)
+	err = utils.SendEmailUsingSMTP(subject, body, appConfig.EmailSMTPhost, appConfig.EmailSMTPport, appConfig.EmailSMTPuser, appConfig.EmailSMTPpwd, appConfig.EmailSMTPfrom, appConfig.EmailSMTPto, appConfig.EmailSMTPssl)
 	if err != nil {
 		logger.Logger.Errorf("发送邮件失败, %s", err)
 		return
@@ -110,26 +52,16 @@ func CheckOrderExpire() {
 // 检查心跳
 func CheckHeart() bool {
 	logger.Logger.Info("检查心跳")
-	lastHeart, err := db.GetSetting("lastHeart")
+	appConfig, err := db.GetAppConfig()
 	if err != nil {
 		logger.Logger.Error(err)
 		return false
 	}
-	lastHeartInt, err := strconv.ParseInt(lastHeart.VValue, 10, 64)
-	if err != nil {
-		logger.Logger.Error(err)
-		return false
-	}
-	if utils.GetUnix13()-lastHeartInt > 30000 {
+	if utils.GetUnix13()-int64(appConfig.LastHeart) > 30000 {
 		logger.Logger.Info("检查心跳完成, 心跳超时")
-		setting, err := db.GetSetting("monitorNotice")
-		if err != nil {
-			logger.Logger.Error(err)
-		} else {
-			if setting.VValue == "1" {
-				timeStr := time.Unix(lastHeartInt/1000, 0).Format("2006-01-02 15:04:05")
-				go SendEmailTask("监控端掉线", "监控端已掉线，上次心跳时间："+timeStr)
-			}
+		if appConfig.MonitorNotice {
+			timeStr := time.Unix(int64(appConfig.LastHeart)/1000, 0).Format("2006-01-02 15:04:05")
+			go SendEmailTask("监控端掉线", "监控端已掉线，上次心跳时间："+timeStr)
 		}
 		return false
 	}
@@ -140,16 +72,16 @@ func CheckHeart() bool {
 func Notify(order db.PayOrder) {
 	// payId=1547130349673&param=vone666&type=2&price=0.1&reallyPrice=0.1
 	// 获取异步通知地址
+	appConfig, err := db.GetAppConfig()
+	if err != nil {
+		logger.Logger.Error(err)
+		return
+	}
 	var notifyURL string
 	if order.NotifyURL != "" {
 		notifyURL = order.NotifyURL
 	} else {
-		setting, err := db.GetSetting("notifyURL")
-		if err != nil {
-			logger.Logger.Error(err)
-			return
-		}
-		notifyURL = setting.VValue
+		notifyURL = appConfig.NotifyUrl
 	}
 	params := map[string]string{
 		"payId":       order.PayID,
@@ -158,12 +90,7 @@ func Notify(order db.PayOrder) {
 		"param":       order.Param,
 		"reallyPrice": utils.Float64ToSting(order.ReallyPrice),
 	}
-	apiSecret, err := db.GetSetting("apiSecret")
-	if err != nil {
-		logger.Logger.Error(err)
-		return
-	}
-	params["sign"] = hash.GetMD5Hash(fmt.Sprintf("%s%s%s%s%s", order.PayID, order.Param, fmt.Sprintf("%d", order.Type), utils.Float64ToSting(order.Price), utils.Float64ToSting(order.ReallyPrice)) + apiSecret.VValue)
+	params["sign"] = hash.GetMD5Hash(fmt.Sprintf("%s%s%s%s%s", order.PayID, order.Param, fmt.Sprintf("%d", order.Type), utils.Float64ToSting(order.Price), utils.Float64ToSting(order.ReallyPrice)) + appConfig.APISecret)
 	// 发送异步通知 GET  使用net/http
 	httpClient := &http.Client{}
 	var paramsStr string
@@ -193,13 +120,8 @@ func Notify(order db.PayOrder) {
 		if err := db.UpdatePayOrder(order); err != nil {
 			logger.Logger.Error(err)
 		}
-		setting, err := db.GetSetting("errorNotice")
-		if err != nil {
-			logger.Logger.Error(err)
-		} else {
-			if setting.VValue != "0" {
-				go SendEmailTask("异步通知失败", fmt.Sprintf("异步通知失败，状态码：%d，订单ID：%d", resp.StatusCode, order.ID))
-			}
+		if appConfig.ErrorNotice {
+			go SendEmailTask("异步通知失败", fmt.Sprintf("异步通知失败，状态码：%d，订单ID：%d", resp.StatusCode, order.ID))
 		}
 	} else {
 		body, err := io.ReadAll(resp.Body)
@@ -209,13 +131,8 @@ func Notify(order db.PayOrder) {
 		}
 		logger.Logger.Info("异步通知结果", string(body))
 		if string(body) != "success" {
-			setting, err := db.GetSetting("errorNotice")
-			if err != nil {
-				logger.Logger.Error(err)
-			} else {
-				if setting.VValue != "0" {
-					go SendEmailTask("异步通知失败", fmt.Sprintf("异步通知失败，状态码：%d，订单ID：%d", resp.StatusCode, order.ID))
-				}
+			if appConfig.ErrorNotice {
+				go SendEmailTask("异步通知失败", fmt.Sprintf("异步通知失败，状态码：%d，订单ID：%d", resp.StatusCode, order.ID))
 			}
 			order.State = 2
 		} else {
@@ -230,6 +147,11 @@ func Notify(order db.PayOrder) {
 
 func AppPush(type_ int, price float64, metadata string) {
 	logger.Logger.Info("app推送", type_, price)
+	appConfig, err := db.GetAppConfig()
+	if err != nil {
+		logger.Logger.Error(err)
+		return
+	}
 	// 添加到收款记录
 	payLog, err := db.AddPaylog(price, strconv.Itoa(type_), metadata)
 	if err != nil {
@@ -237,23 +159,13 @@ func AppPush(type_ int, price float64, metadata string) {
 		return
 	}
 	// 修改最后收款时间
-	setting, err := db.GetSetting("lastPay")
-	if err != nil {
-		logger.Logger.Error(err)
-		return
-	}
-	setting.VValue = fmt.Sprintf("%d", utils.GetUnix10())
-	if err := db.UpdateSetting(setting.VKey, setting.VValue); err != nil {
+	nowTime := fmt.Sprintf("%d", utils.GetUnix10())
+	if err := db.UpdateSetting("lastPay", nowTime); err != nil {
 		logger.Logger.Error(err)
 		return
 	}
 	// 收款通知
-	setting, err = db.GetSetting("payNotice")
-	if err != nil {
-		logger.Logger.Error(err)
-		return
-	}
-	if setting.VValue != "0" {
+	if appConfig.PayNotice {
 		switch type_ {
 		case 1:
 			go SendEmailTask("收款通知", "收到微信收款"+strconv.FormatFloat(price, 'f', 2, 64)+"元")
@@ -274,17 +186,12 @@ func AppPush(type_ int, price float64, metadata string) {
 	}
 	if order.ID == 0 {
 		logger.Logger.Info("app推送完成, 未找到订单")
-		setting, err := db.GetSetting("errorNotice")
-		if err != nil {
-			logger.Logger.Error(err)
-		} else {
-			if setting.VValue != "0" {
-				switch type_ {
-				case 1:
-					go SendEmailTask("收款异常", "微信收款异常，未找到订单，金额："+strconv.FormatFloat(price, 'f', 2, 64))
-				case 2:
-					go SendEmailTask("收款异常", "支付宝收款异常，未找到订单，金额："+strconv.FormatFloat(price, 'f', 2, 64))
-				}
+		if appConfig.ErrorNotice {
+			switch type_ {
+			case 1:
+				go SendEmailTask("收款异常", "微信收款异常，未找到订单，金额："+strconv.FormatFloat(price, 'f', 2, 64))
+			case 2:
+				go SendEmailTask("收款异常", "支付宝收款异常，未找到订单，金额："+strconv.FormatFloat(price, 'f', 2, 64))
 			}
 		}
 		return

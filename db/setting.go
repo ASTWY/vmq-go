@@ -1,9 +1,102 @@
 package db
 
+import "strconv"
+
 type Setting struct {
 	ID     uint   `gorm:"primaryKey" json:"id"` // ID
 	VKey   string `json:"vkey"`                 // 键
 	VValue string `json:"vvalue"`               // 值
+}
+
+type AppConfig struct {
+	AdminPwd      string `json:"adminPwd"`
+	AdminUser     string `json:"adminUser"`
+	AliPay        string `json:"aliPay"`
+	APISecret     string `json:"apiSecret"`
+	EmailSMTPfrom string `json:"emailSMTPfrom"`
+	EmailSMTPhost string `json:"emailSMTPhost"`
+	EmailSMTPport int    `json:"emailSMTPport"`
+	EmailSMTPpwd  string `json:"emailSMTPpwd"`
+	EmailSMTPssl  bool   `json:"emailSMTPssl"`
+	EmailSMTPto   string `json:"emailSMTPto"`
+	EmailSMTPuser string `json:"emailSMTPuser"`
+	ErrorNotice   bool   `json:"errorNotice"`
+	Expire        int    `json:"expire"`
+	LastHeart     int    `json:"lastHeart"`
+	LastPay       int    `json:"lastPay"`
+	MonitorNotice bool   `json:"monitorNotice"`
+	NotifyUrl     string `json:"notifyUrl"`
+	OrderMaxNum   int    `json:"orderMaxNum"`
+	OrderType     int    `json:"orderType"`
+	PayNotice     bool   `json:"payNotice"`
+	ReturnUrl     string `json:"returnUrl"`
+	WechatPay     string `json:"wechatPay"`
+}
+
+func GetAppConfig() (AppConfig, error) {
+	settings, err := GetSettings()
+	if err != nil {
+		return AppConfig{}, err
+	}
+
+	var appConfig AppConfig
+
+	for _, v := range settings {
+		switch v.VKey {
+		case "adminPwd":
+			appConfig.AdminPwd = v.VValue
+		case "adminUser":
+			appConfig.AdminUser = v.VValue
+		case "aliPay":
+			appConfig.AliPay = v.VValue
+		case "apiSecret":
+			appConfig.APISecret = v.VValue
+		case "emailSMTPfrom":
+			appConfig.EmailSMTPfrom = v.VValue
+		case "emailSMTPhost":
+			appConfig.EmailSMTPhost = v.VValue
+		case "emailSMTPport":
+			appConfig.EmailSMTPport, _ = strconv.Atoi(v.VValue)
+		case "emailSMTPpwd":
+			appConfig.EmailSMTPpwd = v.VValue
+		case "emailSMTPssl":
+			appConfig.EmailSMTPssl = v.VValue != "0"
+		case "emailSMTPto":
+			appConfig.EmailSMTPto = v.VValue
+		case "emailSMTPuser":
+			appConfig.EmailSMTPuser = v.VValue
+		case "errorNotice":
+			appConfig.ErrorNotice = v.VValue != "0"
+		case "expire":
+			appConfig.Expire, _ = strconv.Atoi(v.VValue)
+		case "lastHeart":
+			appConfig.LastHeart, _ = strconv.Atoi(v.VValue)
+		case "lastPay":
+			appConfig.LastPay, _ = strconv.Atoi(v.VValue)
+		case "monitorNotice":
+			appConfig.MonitorNotice = v.VValue != "0"
+		case "notifyUrl":
+			appConfig.NotifyUrl = v.VValue
+		case "orderMaxNum":
+			appConfig.OrderMaxNum, _ = strconv.Atoi(v.VValue)
+		case "orderType":
+			appConfig.OrderType, _ = strconv.Atoi(v.VValue)
+		case "payNotice":
+			appConfig.PayNotice = v.VValue != "0"
+		case "returnUrl":
+			appConfig.ReturnUrl = v.VValue
+		case "wechatPay":
+			appConfig.WechatPay = v.VValue
+		}
+	}
+	return appConfig, nil
+}
+
+func (appConfig *AppConfig) VerifyAdmin(username string, password string) bool {
+	if appConfig.AdminUser == username && appConfig.AdminPwd == password {
+		return true
+	}
+	return false
 }
 
 // 获取所有数据
@@ -14,7 +107,7 @@ func GetSettings() ([]Setting, error) {
 }
 
 // 获取单个数据
-func GetSetting(key string) (Setting, error) {
+func getSetting(key string) (Setting, error) {
 	setting := Setting{}
 	err := DB.Where("v_key = ?", key).First(&setting).Error
 	return setting, err
@@ -59,24 +152,4 @@ func DeleteSetting(key string) error {
 	}
 	tx.Commit()
 	return nil
-}
-
-// VerifyAdmin
-func VerifyAdmin(username string, password string) bool {
-	// adminUser adminPwd
-	setting, err := GetSetting("adminUser")
-	if err != nil {
-		return false
-	}
-	if setting.VValue != username {
-		return false
-	}
-	setting, err = GetSetting("adminPwd")
-	if err != nil {
-		return false
-	}
-	if setting.VValue != password {
-		return false
-	}
-	return true
 }
