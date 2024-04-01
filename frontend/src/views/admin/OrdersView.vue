@@ -50,14 +50,12 @@
 <script>
 import isNumber from "lodash/isNumber";
 import DashboardLayout from "@/components/Dashboard.vue";
-import TextDisplay from "@/components/TextDisplay.vue";
 import api from "@/api";
 
 export default {
     name: "DashboardView",
     components: {
         DashboardLayout,
-        TextDisplay,
     },
     data() {
         return {
