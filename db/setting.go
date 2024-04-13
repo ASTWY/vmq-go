@@ -92,11 +92,52 @@ func GetAppConfig() (AppConfig, error) {
 	return appConfig, nil
 }
 
+func Keys() []string {
+	return []string{
+		"adminPwd",
+		"adminUser",
+		"aliPay",
+		"apiSecret",
+		"emailSMTPfrom",
+		"emailSMTPhost",
+		"emailSMTPport",
+		"emailSMTPpwd",
+		"emailSMTPssl",
+		"emailSMTPto",
+		"emailSMTPuser",
+		"errorNotice",
+		"expire",
+		"lastHeart",
+		"lastPay",
+		"monitorNotice",
+		"notifyUrl",
+		"orderMaxNum",
+		"orderType",
+		"payNotice",
+		"returnUrl",
+		"wechatPay",
+	}
+}
+
 func (appConfig *AppConfig) VerifyAdmin(username string, password string) bool {
 	if appConfig.AdminUser == username && appConfig.AdminPwd == password {
 		return true
 	}
 	return false
+}
+
+// 检查表数据是否存在 用于初始化时检查所有的配置项是否存在，不存在则添加
+func CheckSetting() {
+	keys := Keys()
+	for _, key := range keys {
+		setting, err := getSetting(key)
+		if err != nil {
+			AddSetting(key, "")
+		}
+		if setting.VValue == "" {
+			UpdateSetting(key, "")
+		}
+	}
 }
 
 // 获取所有数据
