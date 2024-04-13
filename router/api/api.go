@@ -234,7 +234,7 @@ func creatOrderHandler(c *gin.Context) {
 		})
 		return
 	}
-	timeout := (order.ExpectDate - order.CreateDate) / 1000 / 60 // 分钟
+	timeout := (order.ExpectDate - order.CreateDate) / 60
 	c.IndentedJSON(200, gin.H{
 		"code": 1,
 		"msg":  "success",
